@@ -30,7 +30,8 @@ text_dir <- here::here("text")
 livedoor_dirs <- list.dirs(file.path(text_dir),
                            recursive = FALSE)
 # 除外するファイルを列挙
-remove_file_regexp <- c(".*LICENSE.txt¦.*CHANGES.txt") # ニュース記事ファイルのみに絞り込む
+remove_file_regexp <- c(".*LICENSE.txt¦.*CHANGES.txt")
+# ニュース記事ファイルのみに絞り込む
 livedoor_files <- list.files(livedoor_dirs,
                              full.names = TRUE, recursive = FALSE) %>%
   # LICENSE.txtなどを除外
@@ -49,7 +50,8 @@ read_livedoor <- function(file) {
   # ファイルの読み込み
   lines <- readr::read_lines(file)
   # ディレクトリ名(カテゴリ名を抽出)
-  dir_name <- stringr::str_match(file, categories_regexp) # データフレーム化
+  dir_name <- stringr::str_match(file, categories_regexp)
+  # データフレーム化
   df <- tibble::tibble(
     category = dir_name, source = lines[1], time_stamp = lines[2],
     source = lines[1],
@@ -63,7 +65,8 @@ read_livedoor <- function(file) {
 df_example <- read_livedoor(livedoor_files[1])
 
 df_livedoor <- livedoor_files %>%
-  # ニュース記事ファイルに関数を適用し、行方向に連結 purrr::map_dfr(read_livedoor) %>%
+  # ニュース記事ファイルに関数を適用し、行方向に連結
+  purrr::map_dfr(read_livedoor) %>%
   # 分析しやすいようにIDを振る
   dplyr::mutate(doc_id = dplyr::row_number())
 
@@ -71,7 +74,8 @@ df_livedoor <- livedoor_files %>%
 # 乱数シードの指定
 set.seed(71)
 # 学習データ8割、評価データ2割に分割
-livedoor_split <- rsample::initial_split(df_livedoor, prop = .8, strata = "category") livedoor_train <- rsample::training(livedoor_split)
+livedoor_split <- rsample::initial_split(df_livedoor, prop = .8, strata = "category")
+livedoor_train <- rsample::training(livedoor_split)
 livedoor_test <- rsample::testing(livedoor_split)
 # cv用にさらに分割
 livedoor_cv_splits <- rsample::vfold_cv(livedoor_train,
@@ -81,7 +85,8 @@ livedoor_cv_splits <- rsample::vfold_cv(livedoor_train,
 # MeCabでトークナイズする関数
 mecab_tokenizer <- function(x) {
   # 残す品詞を指定
-  keep_pos <- c("名詞", "形容詞", "動詞") res <- list()
+  keep_pos <- c("名詞", "形容詞", "動詞")
+  res <- list()
   for (i in x) {
     # 形態素解析をして原型を返す
     wakati <- RMeCab::RMeCabC(i, mypref = 1) %>%
@@ -116,8 +121,10 @@ livedoor_rec <- recipes::recipe(category ̃~ body, data = livedoor_train) %>%
   # トークナイズ
   textrecipes::step_tokenize(body, custom_token = mecab_tokenizer) %>%
   # ストップワードの除去
-  textrecipes::step_stopwords(body, custom_stopword_source = stopwords) %>% # 30回以上、200回以下の出現頻度の単語に絞る
-  textrecipes::step_tokenfilter(body, min_times = 30, max_tokens = 200) %>% # Feature Hashingで特徴量に変換
+  textrecipes::step_stopwords(body, custom_stopword_source = stopwords) %>%
+  # 30回以上、200回以下の出現頻度の単語に絞る
+  textrecipes::step_tokenfilter(body, min_times = 30, max_tokens = 200) %>%
+  # Feature Hashingで特徴量に変換
   textrecipes::step_texthash(body, num_terms = 200)
 
 # 6.2.4 XGBoost によるモデリング ------------------------------------------
@@ -156,15 +163,23 @@ livedoor_tune_best <-
   tune::show_best()
 livedoor_tune_best
 
-# 選んだハイパーパラメータでモデル作成 livedoor_xgb_best <-
-parsnip::boost_tree(
-  # 最適なハイパーパラメータを選択
-  # 1行目を選択
-  sample_size = livedoor_tune_best$sample_size[1], loss_reduction = livedoor_tune_best$loss_reduction[1], tree_depth = livedoor_tune_best$tree_depth[1]
-) %>% parsnip::set_engine("xgboost") %>% parsnip::set_mode("classification")
-# ワークフローの更新 livedoor_cv_last <-
-livedoor_workflow %>%
-  workflows::update_model(livedoor_xgb_best)
+# 選んだハイパーパラメータでモデル作成
+livedoor_xgb_best <-
+  parsnip::boost_tree(
+    # 最適なハイパーパラメータを選択
+    # 1行目を選択
+    sample_size = livedoor_tune_best$sample_size[1],
+    loss_reduction = livedoor_tune_best$loss_reduction[1],
+    tree_depth = livedoor_tune_best$tree_depth[1]
+  ) %>%
+  parsnip::set_engine("xgboost") %>%
+  parsnip::set_mode("classification")
+
+# ワークフローの更新
+livedoor_cv_last <-
+  livedoor_workflow %>%
+    workflows::update_model(livedoor_xgb_best)
+
 # 更新したワークフローで学習データ全体にモデル適用
 livedoor_last_fit <-
   livedoor_cv_last %>%
