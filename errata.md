@@ -5,4 +5,5 @@
 
 | 訂正箇所           | 誤                               | 正                              | 備考     |
 |--------------------|----------------------------------|---------------------------------|----------|
-| 99ページ10行目 | Gareth James, Daniela Witten (著) | Gareth James, Daniela Witten, Trevor Hastie, Robert Tibshiran (著) | 
+| 48ページ中段コード | ames_cat_rec | ames_dummy_rec |  |
+| 99ページ10行目 | Gareth James, Daniela Witten (著) | Gareth James, Daniela Witten, Trevor Hastie, Robert Tibshiran (著) | |
